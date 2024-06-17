@@ -1,6 +1,7 @@
 /* Net Flood - Send as many broadcast packets as possible */
 /* Written by Ian Seyler */
 
+// Requirements: libncurses-dev
 // Compile: gcc netflood.c -o netflood -Wall -lncurses
 
 /* Global Includes */
