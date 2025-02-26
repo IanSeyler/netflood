@@ -28,7 +28,7 @@
 unsigned char src_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // server address
 unsigned char dst_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 int c, s;
-unsigned int count=0, lastcount=0, running=1, packet_size=128;
+unsigned int count=0, msec = 0, errors=0, lastcount=0, running=1, packet_size=1500;
 struct sockaddr_ll sa;
 char key;
 unsigned char* buffer;
@@ -39,7 +39,6 @@ time_t seconds, timedelay;
 int main(int argc, char *argv[])
 {
 	setlocale(LC_NUMERIC, "");
-	printf("Net Flood - Send as many broadcast packets as possible\n");
 
 	/* first argument needs to be a NIC */
 	if (argc < 2)
@@ -120,24 +119,14 @@ int main(int argc, char *argv[])
 
 	printw("Flooding...\n\nPress any key to exit\n");
 
-	seconds = time(NULL);
-	timedelay = seconds+1;
+	clock_t start = clock();
 
 	while(running == 1)
 	{
-		seconds = time(NULL);
-		if (seconds > timedelay)
-		{
-			move(2,12);
-			printw("%'d %d-byte packets - %'d packets per second - %'d bytes per second", count, packet_size, (count - lastcount), (count - lastcount) * packet_size / 2);
-			refresh();
-			timedelay = seconds+1;
-			lastcount = count;
-			key = getch();
-			if (key != ERR)
-				running = 0;
-		}
-		// Increment EtherType
+		key = getch();
+		if (key != ERR)
+			running = 0;
+
 		if (buffer[13] < 0xFF)
 			buffer[13] = buffer[13] + 1;
 		else
@@ -145,12 +134,29 @@ int main(int argc, char *argv[])
 			buffer[13] = 0x00;
 			buffer[12] = buffer[12] + 1;
 		}
+
 		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof (sa));
+
+		if (c != packet_size)
+			errors++;
+
 		count++;
 	}
 
+	clock_t difference = clock() - start;
+
 	endwin(); // Stop curses
-	printf("Sent %d packets.\n", count);
+
+	msec = difference * 1000 / CLOCKS_PER_SEC;
+
+	unsigned int seconds = msec/1000;
+	unsigned int packets_sent = count - errors;
+	unsigned long long data_sent = packets_sent * packet_size;
+	unsigned int data_send_MB = data_sent / 1048576;
+
+	printf("Time elapsed %d seconds\n", seconds);
+	printf("Sent %'d packets.\nTotal data sent was %'d MiB\n", packets_sent, data_send_MB);
+	printf("Average rate %'d MBPS\n", data_send_MB / seconds);
 	close(s);
 	return 0;
 }
