@@ -28,7 +28,7 @@
 unsigned char src_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // server address
 unsigned char dst_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 int c, s;
-unsigned int msec=0, lastcount=0, running=1, packet_size=1000;
+unsigned int msec=0, lastcount=0, running=1, packet_size=1500;
 unsigned long long count=0, errors=0;
 struct sockaddr_ll sa;
 char key;
