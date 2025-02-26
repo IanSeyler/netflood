@@ -28,7 +28,8 @@
 unsigned char src_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // server address
 unsigned char dst_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 int c, s;
-unsigned int count=0, msec = 0, errors=0, lastcount=0, running=1, packet_size=1500;
+unsigned int msec=0, lastcount=0, running=1, packet_size=1000;
+unsigned long long count=0, errors=0;
 struct sockaddr_ll sa;
 char key;
 unsigned char* buffer;
@@ -150,12 +151,12 @@ int main(int argc, char *argv[])
 	msec = difference * 1000 / CLOCKS_PER_SEC;
 
 	unsigned int seconds = msec/1000;
-	unsigned int packets_sent = count - errors;
+	unsigned long long packets_sent = count - errors;
 	unsigned long long data_sent = packets_sent * packet_size;
 	unsigned int data_send_MB = data_sent / 1048576;
 
 	printf("Time elapsed %d seconds\n", seconds);
-	printf("Sent %'d packets.\nTotal data sent was %'d MiB\n", packets_sent, data_send_MB);
+	printf("Sent %'lld packets.\nTotal data sent was %'d MiB\n", packets_sent, data_send_MB);
 	printf("Average rate %'d MBPS\n", data_send_MB / seconds);
 	close(s);
 	return 0;
