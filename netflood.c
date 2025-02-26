@@ -18,6 +18,7 @@
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <locale.h>
 
 /* Global defines */
 #undef ETH_FRAME_LEN
@@ -37,6 +38,7 @@ time_t seconds, timedelay;
 /* Main code */
 int main(int argc, char *argv[])
 {
+	setlocale(LC_NUMERIC, "");
 	printf("Net Flood - Send as many broadcast packets as possible\n");
 
 	/* first argument needs to be a NIC */
@@ -127,13 +129,21 @@ int main(int argc, char *argv[])
 		if (seconds > timedelay)
 		{
 			move(2,12);
-			printw("%d %d-byte packets - %d bytes per second", count, packet_size, (count - lastcount) * packet_size / 2);
+			printw("%'d %d-byte packets - %'d packets per second - %'d bytes per second", count, packet_size, (count - lastcount), (count - lastcount) * packet_size / 2);
 			refresh();
 			timedelay = seconds+1;
 			lastcount = count;
 			key = getch();
 			if (key != ERR)
 				running = 0;
+		}
+		// Increment EtherType
+		if (buffer[13] < 0xFF)
+			buffer[13] = buffer[13] + 1;
+		else
+		{
+			buffer[13] = 0x00;
+			buffer[12] = buffer[12] + 1;
 		}
 		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof (sa));
 		count++;
