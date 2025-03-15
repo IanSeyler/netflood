@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	buffer[14] = 0x00;
 	buffer[15] = 0x10;
 
-	printw("Flooding...\n\nPress any key to exit\n");
+	printw("Flooding...\n\nPress any key to exit");
 
 	clock_t start = clock();
 
@@ -128,20 +128,22 @@ int main(int argc, char *argv[])
 		if (key != ERR)
 			running = 0;
 
-		if (buffer[13] < 0xFF)
-			buffer[13] = buffer[13] + 1;
-		else
-		{
-			buffer[13] = 0x00;
-			buffer[12] = buffer[12] + 1;
-		}
-
 		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof (sa));
 
-		if (c != packet_size)
+		if (c == packet_size)
+		{
+			// Prepare next packet to be sent
+			if (buffer[13] < 0xFF)
+				buffer[13] = buffer[13] + 1;
+			else
+			{
+				buffer[13] = 0x00;
+				buffer[12] = buffer[12] + 1;
+			}
+			count++; // Increment the count of packets that were sent successfully
+		}
+		else
 			errors++;
-
-		count++;
 	}
 
 	clock_t difference = clock() - start;
@@ -151,13 +153,14 @@ int main(int argc, char *argv[])
 	msec = difference * 1000 / CLOCKS_PER_SEC;
 
 	unsigned int seconds = msec/1000;
-	unsigned long long packets_sent = count - errors;
-	unsigned long long data_sent = packets_sent * packet_size;
+	unsigned long long data_sent = count * packet_size;
 	unsigned int data_send_MB = data_sent / 1048576;
 
-	printf("Time elapsed %d seconds\n", seconds);
-	printf("Sent %'lld packets.\nTotal data sent was %'d MiB\n", packets_sent, data_send_MB);
-	printf("Average rate %'d MBPS\n", data_send_MB / seconds);
+	printf("Time elapsed\t%d seconds", seconds);
+	printf("\nPackets sent:\t%'lld packets\nTX errors:\t%lld\nData sent:\t%'d MiB", count, errors, data_send_MB);
+	if (seconds > 0)
+		printf("\nAverage rate:\t%'d MB/s (%'d Mbps)", data_send_MB / seconds, (data_send_MB * 8) / seconds);
+	printf("\n");
 	close(s);
 	return 0;
 }
