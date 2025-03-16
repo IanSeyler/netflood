@@ -2,14 +2,13 @@
 /* Written by Ian Seyler */
 
 // Requirements: libncurses-dev
-// Compile: gcc netflood.c -o netflood -Wall -lncurses
+// Compile: gcc netflood.c -o netflood -Wall -lncurses -lpthread
 
 /* Global Includes */
 #include <curses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <net/if.h>
@@ -19,22 +18,27 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <pthread.h>
 
 /* Global defines */
 #undef ETH_FRAME_LEN
 #define ETH_FRAME_LEN 1518
+#define NUM_THREADS 1
 
 /* Global variables */
 unsigned char src_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // server address
 unsigned char dst_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-int c, s;
+int c, s, seconds_to_run;
 unsigned int msec=0, lastcount=0, running=1, packet_size=1500;
-unsigned long long count=0, errors=0;
+unsigned long long iterations=0, count=0, errors=0;
 struct sockaddr_ll sa;
 char key;
 unsigned char* buffer;
 struct ifreq ifr;
 time_t seconds, timedelay;
+
+/* Global functions */
+void* send_packets(void* arg);
 
 /* Main code */
 int main(int argc, char *argv[])
@@ -49,7 +53,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* open a socket in raw mode */
-	s = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	s = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (s == -1)
 	{
 		printf("Error: Could not open socket! Check permissions\n");
@@ -120,15 +124,46 @@ int main(int argc, char *argv[])
 
 	printw("Flooding...\n\nPress any key to exit");
 
-	clock_t start = clock();
+	time_t start = time(NULL);
+
+	pthread_t threads[NUM_THREADS];
+	for (int i = 0; i < NUM_THREADS; i++)
+	{
+		if (pthread_create(&threads[i], NULL, send_packets, NULL) != 0) {
+			perror("Thread creation failed");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	while(running == 1)
 	{
 		key = getch();
 		if (key != ERR)
 			running = 0;
+	}
 
-		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof (sa));
+	time_t end = time(NULL);
+
+	endwin(); // Stop curses
+
+	unsigned int seconds = end - start;
+	unsigned long long data_sent = count * packet_size;
+	unsigned int data_send_MB = data_sent / 1048576;
+
+	printf("%12d seconds elapsed", seconds);
+	printf("\n%'12lld iterations\n%'12lld packets send\n%'12lld TX errors\n%'12d MiB transferred", iterations, count, errors, data_send_MB);
+	if (seconds > 0)
+		printf("\n%'12d MiB/s (%'d Mbps)", data_send_MB / seconds, (data_send_MB * 8) / seconds);
+	printf("\n");
+	close(s);
+	return 0;
+}
+
+void* send_packets(void* arg)
+{
+	while(running == 1)
+	{
+		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof(struct sockaddr_ll));
 
 		if (c == packet_size)
 		{
@@ -143,26 +178,15 @@ int main(int argc, char *argv[])
 			count++; // Increment the count of packets that were sent successfully
 		}
 		else
+		{
 			errors++;
+		}
+
+		iterations++;
 	}
 
-	clock_t difference = clock() - start;
-
-	endwin(); // Stop curses
-
-	msec = difference * 1000 / CLOCKS_PER_SEC;
-
-	unsigned int seconds = msec/1000;
-	unsigned long long data_sent = count * packet_size;
-	unsigned int data_send_MB = data_sent / 1048576;
-
-	printf("Time elapsed\t%d seconds", seconds);
-	printf("\nPackets sent:\t%'lld packets\nTX errors:\t%lld\nData sent:\t%'d MiB", count, errors, data_send_MB);
-	if (seconds > 0)
-		printf("\nAverage rate:\t%'d MB/s (%'d Mbps)", data_send_MB / seconds, (data_send_MB * 8) / seconds);
-	printf("\n");
-	close(s);
-	return 0;
+	pthread_exit(NULL);
 }
 
 // EOF
+
