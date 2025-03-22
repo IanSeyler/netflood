@@ -135,8 +135,6 @@ int main(int argc, char *argv[])
 	memcpy((void*)(buffer+6), (void*)src_MAC, 6);
 	buffer[12] = 0xAB;
 	buffer[13] = 0xBA;
-	buffer[14] = 0x00;
-	buffer[15] = 0x10;
 
 	printw("Flooding...\n\nPress any key to exit");
 
@@ -184,12 +182,12 @@ void* send_packets(void* arg)
 		if (c == packet_size)
 		{
 			// Prepare next packet to be sent
-			if (buffer[13] < 0xFF)
-				buffer[13] = buffer[13] + 1;
+			if (buffer[15] < 0xFF)
+				buffer[15] = buffer[15] + 1;
 			else
 			{
-				buffer[13] = 0x00;
-				buffer[12] = buffer[12] + 1;
+				buffer[15] = 0x00;
+				buffer[14] = buffer[14] + 1;
 			}
 			count++; // Increment the count of packets that were sent successfully
 			if (count == packets_to_send)
