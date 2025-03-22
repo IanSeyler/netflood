@@ -4,6 +4,9 @@
 // Requirements: libncurses-dev
 // Compile: gcc netflood.c -o netflood -Wall -lncurses -lpthread
 
+// sudo ./netflood INTERFACE PACKET_COUNT
+// PACKET_COUNT is optional.
+
 /* Global Includes */
 #include <curses.h>
 #include <stdio.h>
@@ -29,7 +32,7 @@
 unsigned char src_MAC[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // server address
 unsigned char dst_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 int c, s, seconds_to_run;
-unsigned int msec=0, lastcount=0, running=1, packet_size=1500;
+unsigned int msec=0, lastcount=0, running=1, packet_size=1500, packets_to_send;
 unsigned long long iterations=0, count=0, errors=0;
 struct sockaddr_ll sa;
 char key;
@@ -50,6 +53,19 @@ int main(int argc, char *argv[])
 	{
 		printf("Please specify an Ethernet device\n");
 		exit(0);
+	}
+
+	if (argc == 3)
+	{
+		if (sscanf (argv[2], "%u", &packets_to_send) != 1)
+		{
+			printf("Specify a valid number of packets to send\n");
+			exit(0);
+		}
+	}
+	else
+	{
+		packets_to_send = 0; // Infinite packets
 	}
 
 	/* open a socket in raw mode */
@@ -176,6 +192,8 @@ void* send_packets(void* arg)
 				buffer[12] = buffer[12] + 1;
 			}
 			count++; // Increment the count of packets that were sent successfully
+			if (count == packets_to_send)
+				running = 0;
 		}
 		else
 		{
