@@ -177,18 +177,11 @@ void* send_packets(void* arg)
 {
 	while(running == 1)
 	{
+		memcpy((void*)(buffer+16), (void*)&count, 8);
 		c = sendto(s, buffer, packet_size, 0, (struct sockaddr *)&sa, sizeof(struct sockaddr_ll));
 
 		if (c == packet_size)
 		{
-			// Prepare next packet to be sent
-			if (buffer[15] < 0xFF)
-				buffer[15] = buffer[15] + 1;
-			else
-			{
-				buffer[15] = 0x00;
-				buffer[14] = buffer[14] + 1;
-			}
 			count++; // Increment the count of packets that were sent successfully
 			if (count == packets_to_send)
 				running = 0;
